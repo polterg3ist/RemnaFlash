@@ -198,7 +198,7 @@ async def get_user_by_uuid(panel_uuid: str) -> Optional[dict]:
 
 async def extend_user_subscription(
     panel_uuid: str,
-    days: int = config.SUBSCRIPTION_DAYS,
+    days: int,
 ) -> Optional[dict]:
     """
     Продлевает подписку: если активна — добавляет дни к текущей дате,
