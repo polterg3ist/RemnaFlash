@@ -90,9 +90,10 @@ async def shutdown() -> None:
 async def yookassa_webhook(request: Request) -> dict:
     body = await request.body()
 
-    # Парсим и проверяем уведомление через официальный SDK
     try:
-        notification = WebhookNotificationFactory().create(body)
+        import json
+        body_dict = json.loads(body)
+        notification = WebhookNotificationFactory().create(body_dict)
     except Exception as exc:
         logger.warning("Не удалось распарсить уведомление ЮКассы: %s", exc)
         raise HTTPException(status_code=400, detail="Invalid notification")
