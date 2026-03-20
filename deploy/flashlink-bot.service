@@ -1,0 +1,14 @@
+[Unit]
+Description=FlashLink VPN — Telegram Bot
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/home/RemnaFlash
+EnvironmentFile=/home/RemnaFlash/.env
+ExecStart=/home/RemnaFlash/venv/bin/python bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

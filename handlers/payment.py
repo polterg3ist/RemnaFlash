@@ -1,35 +1,54 @@
 """
-handlers/payment.py — раздел оплаты подписки.
+handlers/payment.py — выбор тарифного плана и создание платежа ЮКасса.
 
-⚠️  ВРЕМЕННАЯ ЗАГЛУШКА: вместо реальной оплаты через ЮМани подписка
-    продлевается бесплатно. Скелет для будущей интеграции уже здесь.
+Флоу:
+  /pay → выбор плана → создание платежа в ЮКасса → ссылка на оплату
+  После оплаты ЮКасса шлёт уведомление на вебхук (webhook_server.py),
+  который продлевает подписку и уведомляет пользователя.
 """
 
 import logging
+import uuid
 
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    Message, CallbackQuery,
+    InlineKeyboardMarkup, InlineKeyboardButton,
+)
+from yookassa import Configuration, Payment
 
 import config
 import database as db
-import panel
 
 logger = logging.getLogger(__name__)
 router = Router()
 
-PRICE_RUB = 199
+# Инициализация ЮКассы
+Configuration.account_id = config.YOOKASSA_SHOP_ID
+Configuration.secret_key = config.YOOKASSA_API_KEY
 
 
-def _pay_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=f"💳 Оплатить {PRICE_RUB} ₽",
-            callback_data="pay_confirm",
-        )],
-        [InlineKeyboardButton(text="❌ Отмена", callback_data="pay_cancel")],
-    ])
+# ---------------------------------------------------------------------------
+# Клавиатуры
+# ---------------------------------------------------------------------------
 
+def _plans_keyboard() -> InlineKeyboardMarkup:
+    """Кнопки с тарифными планами — цены берутся из config.PLANS."""
+    buttons = []
+    for plan in config.PLANS:
+        per_month = plan["price"] / (plan["days"] / 30)
+        label = f"{plan['label']} — {plan['price']} ₽ (~{per_month:.0f} ₽/мес)"
+        buttons.append([InlineKeyboardButton(
+            text=label,
+            callback_data=f"buy:{plan['id']}",
+        )])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+# ---------------------------------------------------------------------------
+# Хэндлеры
+# ---------------------------------------------------------------------------
 
 @router.message(Command("pay"))
 async def cmd_pay(message: Message) -> None:
@@ -37,86 +56,75 @@ async def cmd_pay(message: Message) -> None:
     user_record = await db.get_user(tg_id)
     has_sub = user_record and user_record.get("panel_uuid")
 
-    action_text = (
-        f"🔄 Продлить подписку на <b>{config.SUBSCRIPTION_DAYS} дней</b>"
-        if has_sub
-        else f"🚀 Купить подписку на <b>{config.SUBSCRIPTION_DAYS} дней</b>"
-    )
+    action = "продлить" if has_sub else "купить"
 
     await message.answer(
-        f"💳 <b>Оплата подписки</b>\n\n"
-        f"{action_text}\n\n"
-        f"Стоимость: <b>{PRICE_RUB} ₽</b>\n\n"
-        "⚠️ <i>Сейчас действует тестовый режим — подписка продлевается бесплатно.</i>",
-        reply_markup=_pay_keyboard(),
+        f"💳 <b>Оплата подписки FlashLink VPN</b>\n\n"
+        f"Выбери тариф чтобы {action} подписку:\n\n"
+        "Чем дольше срок — тем выгоднее цена 🎯",
+        reply_markup=_plans_keyboard(),
     )
 
 
-@router.callback_query(lambda c: c.data == "pay_confirm")
-async def callback_pay_confirm(callback: CallbackQuery) -> None:
-    tg_id = callback.from_user.id
-    tg_username = callback.from_user.username or f"user{tg_id}"
+@router.callback_query(lambda c: c.data and c.data.startswith("buy:"))
+async def callback_buy_plan(callback: CallbackQuery) -> None:
+    plan_id = callback.data.split(":", 1)[1]
+    plan = config.PLANS_BY_ID.get(plan_id)
+
+    if not plan:
+        await callback.answer("Неизвестный тариф", show_alert=True)
+        return
 
     await callback.answer()
-    await callback.message.edit_text("⏳ Обрабатываю, подожди секунду...")
 
-    user_record = await db.get_user(tg_id)
+    tg_id = callback.from_user.id
+    idempotency_key = str(uuid.uuid4())
 
-    # Нет подписки — создаём новую
-    if not user_record or not user_record.get("panel_uuid"):
-        result = await panel.create_user(
-            panel_username=f"tg{tg_id}",
-            expire_days=config.SUBSCRIPTION_DAYS,
-            tg_username=tg_username,
-        )
-        if result is None:
-            await callback.message.edit_text(
-                "❌ Не удалось создать подписку — панель временно недоступна.\n"
-                "Попробуй ещё раз через несколько минут."
-            )
-            return
+    try:
+        payment = Payment.create({
+            "amount": {
+                "value": str(plan["price"]),
+                "currency": "RUB",
+            },
+            "confirmation": {
+                "type": "redirect",
+                "return_url": f"https://t.me/{(await callback.bot.get_me()).username}",
+            },
+            "capture": True,
+            "description": f"FlashLink VPN — {plan['label']} (tg:{tg_id})",
+            "metadata": {
+                "telegram_id": str(tg_id),
+                "plan_id": plan_id,
+            },
+        }, idempotency_key)
 
-        user_data = panel._user_data(result)
-        await db.upsert_user(
-            telegram_id=tg_id,
-            username=tg_username,
-            panel_uuid=user_data.get("uuid"),
-            panel_username=user_data.get("username"),
-        )
-
-        sub_link = panel._extract_sub_link(result)
+    except Exception as exc:
+        logger.error("Ошибка создания платежа ЮКасса: %s", exc, exc_info=True)
         await callback.message.edit_text(
-            f"✅ <b>Подписка активирована!</b>\n\n"
-            f"⏳ Срок: <b>{config.SUBSCRIPTION_DAYS} дней</b>\n\n"
-            f"🔗 <b>Ссылка на подписку:</b>\n<code>{sub_link}</code>",
+            "❌ Не удалось создать платёж. Попробуй позже или напиши администратору."
         )
-        logger.info("[STUB] Подписка создана: tg_id=%d", tg_id)
         return
 
-    # Есть подписка — продлеваем
-    result = await panel.extend_user_subscription(
-        panel_uuid=user_record["panel_uuid"],
-        days=config.SUBSCRIPTION_DAYS,
+    # Сохраняем платёж в БД
+    await db.create_payment(
+        payment_id=payment.id,
+        telegram_id=tg_id,
+        plan_id=plan_id,
+        amount=plan["price"],
     )
-    if result is None:
-        await callback.message.edit_text(
-            "❌ Не удалось продлить подписку — панель временно недоступна.\n"
-            "Попробуй ещё раз через несколько минут."
-        )
-        return
 
-    user_data = panel._user_data(result)
-    days_left = panel._days_left(user_data.get("expireAt"))
+    pay_url = payment.confirmation.confirmation_url
+    logger.info(
+        "Платёж создан: %s tg_id=%d plan=%s amount=%d",
+        payment.id, tg_id, plan_id, plan["price"],
+    )
 
     await callback.message.edit_text(
-        f"✅ <b>Подписка продлена!</b>\n\n"
-        f"⏳ Осталось дней: <b>{days_left}</b>\n\n"
-        "Подробности смотри в /cabinet.",
+        f"💳 <b>Оплата — {plan['label']}</b>\n\n"
+        f"Сумма: <b>{plan['price']} ₽</b>\n\n"
+        "Нажми кнопку ниже для перехода к оплате.\n"
+        "После успешной оплаты подписка активируется автоматически ✅",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="💳 Перейти к оплате", url=pay_url),
+        ]]),
     )
-    logger.info("[STUB] Подписка продлена: tg_id=%d", tg_id)
-
-
-@router.callback_query(lambda c: c.data == "pay_cancel")
-async def callback_pay_cancel(callback: CallbackQuery) -> None:
-    await callback.answer()
-    await callback.message.edit_text("Операция отменена.")

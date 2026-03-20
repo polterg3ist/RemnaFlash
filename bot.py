@@ -25,6 +25,7 @@ from aiogram.client.default import DefaultBotProperties
 
 import config
 import database as db
+import panel
 from handlers import trial, cabinet, payment
 
 
@@ -75,22 +76,29 @@ core_router = Router()
 
 @core_router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
-    """Приветственное сообщение."""
     tg_id = message.from_user.id
     username = message.from_user.username or f"user{tg_id}"
-
-    # Сохраняем пользователя в БД (без panel_uuid пока)
     await db.upsert_user(telegram_id=tg_id, username=username)
 
+    # Формируем строки тарифов из config — любое изменение цен отразится здесь
+    plans_text = "\n".join(
+        f"  • {p['label']} — <b>{p['price']} ₽</b>"
+        for p in config.PLANS
+    )
+
     await message.answer(
-        "👋 <b>Добро пожаловать!</b>\n\n"
-        "Это бот для управления VPN-подпиской.\n\n"
-        "<b>Доступные команды:</b>\n"
-        "🎁 /trial — пробная подписка на 14 дней (бесплатно)\n"
+        "⚡ <b>FlashLink VPN</b>\n\n"
+        "Быстрый, надёжный и безопасный VPN.\n"
+        "Работает на всех устройствах: iOS, Android, Windows, macOS.\n\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        f"🎁 Новым пользователям — <b>14 дней бесплатно</b>\n\n"
+        f"💳 Тарифы:\n{plans_text}\n"
+        "━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Команды:</b>\n"
+        "🎁 /trial — бесплатная пробная подписка\n"
         "📋 /cabinet — личный кабинет\n"
         "💳 /pay — купить или продлить подписку\n"
-        "ℹ️ /help — помощь",
-        parse_mode="HTML",
+        "ℹ️ /help — помощь"
     )
 
 
@@ -135,6 +143,7 @@ async def main() -> None:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         await bot.session.close()
+        await panel.close()
         logger.info("Бот остановлен.")
 
 
