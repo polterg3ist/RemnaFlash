@@ -26,7 +26,7 @@ from aiogram.client.default import DefaultBotProperties
 import config
 import database as db
 import panel
-from handlers import trial, cabinet, payment
+from handlers import trial, cabinet, payment, proxy
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,6 @@ async def cmd_start(message: Message) -> None:
     username = message.from_user.username or f"user{tg_id}"
     await db.upsert_user(telegram_id=tg_id, username=username)
 
-    # Формируем строки тарифов из config — любое изменение цен отразится здесь
     plans_text = "\n".join(
         f"  • {p['label']} — <b>{p['price']} ₽</b>"
         for p in config.PLANS
@@ -98,20 +97,22 @@ async def cmd_start(message: Message) -> None:
         "🎁 /trial — бесплатная пробная подписка\n"
         "📋 /cabinet — личный кабинет\n"
         "💳 /pay — купить или продлить подписку\n"
-        "ℹ️ /help — помощь"
+        "🔒 /proxy — бесплатное MTProto прокси для Telegram\n"
+        "ℹ️ /help — помощь\n\n"
+        "━━━━━━━━━━━━━━━━━\n"
+        "📢 Наш канал: @FlashLinkV_P_N"
     )
 
 
 @core_router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     await message.answer(
-        "ℹ️ <b>Помощь</b>\n\n"
-        "/start — начало работы\n"
-        "/trial — получить пробную подписку (1 раз)\n"
-        "/cabinet — посмотреть свою подписку\n"
-        "/pay — купить или продлить подписку\n\n"
-        "Если возникли проблемы — напиши администратору.",
-        parse_mode="HTML",
+        "ℹ️ <b>Помощь — FlashLink VPN</b>\n\n"
+        "/trial — бесплатная пробная подписка на 14 дней\n"
+        "/cabinet — личный кабинет и ссылка на подписку\n"
+        "/pay — купить или продлить подписку\n"
+        "/proxy — бесплатное MTProto прокси для Telegram\n\n"
+        "Вопросы и поддержка — @FlashLinkV_P_N",
     )
 
 
@@ -123,7 +124,6 @@ async def main() -> None:
     setup_logging()
     logger.info("Запуск бота...")
 
-    # Инициализируем БД
     await db.init_db()
 
     bot = Bot(
@@ -132,11 +132,11 @@ async def main() -> None:
     )
     dp = Dispatcher()
 
-    # Регистрируем роутеры
     dp.include_router(core_router)
     dp.include_router(trial.router)
     dp.include_router(cabinet.router)
     dp.include_router(payment.router)
+    dp.include_router(proxy.router)
 
     logger.info("Бот запущен. Polling...")
     try:
