@@ -2,9 +2,10 @@
 database.py — работа с локальной SQLite базой.
 
 Таблицы:
-  users      — пользователи бота с привязкой к панели
-  trial_used — факт использования пробной подписки
+  users      — telegram-пользователи бота
+  trial_used — факт использования пробной подписки (бот)
   payments   — история платежей ЮКассы
+  web_users  — пользователи веб-сайта
 """
 
 import logging
@@ -38,13 +39,23 @@ async def init_db() -> None:
         """)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS payments (
-                payment_id    TEXT PRIMARY KEY,   -- UUID от ЮКассы
+                payment_id    TEXT PRIMARY KEY,
                 telegram_id   INTEGER NOT NULL,
-                plan_id       TEXT NOT NULL,      -- '1m', '3m', '6m', '12m'
-                amount        INTEGER NOT NULL,   -- рублей
-                status        TEXT NOT NULL DEFAULT 'pending',  -- pending/succeeded/canceled
+                plan_id       TEXT NOT NULL,
+                amount        INTEGER NOT NULL,
+                status        TEXT NOT NULL DEFAULT 'pending',
                 created_at    TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS web_users (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                email          TEXT NOT NULL UNIQUE,
+                password_hash  TEXT NOT NULL,
+                panel_uuid     TEXT,
+                trial_used     INTEGER NOT NULL DEFAULT 0,
+                created_at     TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
         await db.commit()
@@ -52,7 +63,7 @@ async def init_db() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Пользователи
+# Telegram-пользователи
 # ---------------------------------------------------------------------------
 
 async def get_user(telegram_id: int) -> Optional[dict]:
@@ -86,7 +97,7 @@ async def upsert_user(
 
 
 # ---------------------------------------------------------------------------
-# Пробная подписка
+# Пробная подписка (бот)
 # ---------------------------------------------------------------------------
 
 async def has_used_trial(telegram_id: int) -> bool:
@@ -105,7 +116,7 @@ async def mark_trial_used(telegram_id: int) -> None:
             (telegram_id, now),
         )
         await db.commit()
-    logger.info("Пробная подписка выдана: telegram_id=%d", telegram_id)
+    logger.info("Пробная подписка (бот) выдана: telegram_id=%d", telegram_id)
 
 
 # ---------------------------------------------------------------------------
@@ -147,4 +158,66 @@ async def update_payment_status(payment_id: str, status: str) -> None:
             (status, now, payment_id),
         )
         await db.commit()
-    logger.info("Статус платежа %s → %s", payment_id, status)
+    logger.info("Статус платежа %s -> %s", payment_id, status)
+
+
+# ---------------------------------------------------------------------------
+# Веб-пользователи (сайт)
+# ---------------------------------------------------------------------------
+
+async def create_web_user(email: str, password_hash: str) -> int:
+    """Создаёт веб-пользователя. Возвращает его id."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "INSERT INTO web_users (email, password_hash) VALUES (?, ?)",
+            (email, password_hash),
+        )
+        await db.commit()
+        return cursor.lastrowid
+
+
+async def get_web_user_by_email(email: str) -> Optional[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM web_users WHERE email = ?", (email,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def get_web_user_by_id(user_id: int) -> Optional[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM web_users WHERE id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def update_web_user_panel(user_id: int, panel_uuid: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE web_users SET panel_uuid = ? WHERE id = ?",
+            (panel_uuid, user_id),
+        )
+        await db.commit()
+
+
+async def has_used_trial_web(user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT trial_used FROM web_users WHERE id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return bool(row and row[0])
+
+
+async def mark_trial_used_web(user_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE web_users SET trial_used = 1 WHERE id = ?", (user_id,)
+        )
+        await db.commit()
+    logger.info("Пробная подписка (web) выдана: web_user_id=%d", user_id)

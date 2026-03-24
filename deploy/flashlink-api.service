@@ -1,0 +1,14 @@
+[Unit]
+Description=FlashLink VPN — Website API Server
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/home/RemnaFlash
+EnvironmentFile=/home/RemnaFlash/.env
+ExecStart=/home/RemnaFlash/venv/bin/uvicorn api_server:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

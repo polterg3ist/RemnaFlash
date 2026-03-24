@@ -84,3 +84,9 @@ DB_PATH: str = os.getenv("DB_PATH", "bot_data.db")
 # Лимиты устройств
 # ---------------------------------------------------------------------------
 HWID_DEVICE_LIMIT: int = int(os.getenv("HWID_DEVICE_LIMIT", "5"))
+
+# Веб-сайт
+SITE_URL: str = os.getenv("SITE_URL", "https://site.poltergeist322.ru")
+
+# JWT для веб-сайта
+JWT_SECRET: str = _require("JWT_SECRET")
