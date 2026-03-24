@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlashLink VPN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─────────────────────────────────────────────── */
+:root {
+  --bg:        #07090F;
+  --surface:   #0D1120;
+  --border:    rgba(255,255,255,.07);
+  --accent:    #00C8FF;
+  --accent2:   #5B4AE8;
+  --text:      #DDE3F0;
+  --muted:     #5A6480;
+  --danger:    #FF4D6A;
+  --success:   #00E5A0;
+  --radius:    12px;
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ─── RESET ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; font: inherit; }
+input { font: inherit; }
+
+/* ─── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ─── NOISE OVERLAY ──────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1000;
+  opacity: .5;
+}
+
+/* ─── NAV ────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 48px;
+  background: linear-gradient(to bottom, rgba(7,9,15,.95), transparent);
+  backdrop-filter: blur(12px);
+}
+.logo {
+  font-family: var(--font-head);
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.logo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.7); }
+}
+.nav-actions { display: flex; gap: 12px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 500;
+  transition: all .2s;
+  letter-spacing: .02em;
+}
+.btn-ghost {
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--border); }
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,200,255,.25);
+}
+.btn-outline {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ─── HERO ───────────────────────────────────────────────── */
+#home {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 120px 24px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.hero-glow {
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,200,255,.08) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -55%);
+  pointer-events: none;
+}
+.hero-glow-2 {
+  position: absolute;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(91,74,232,.06) 0%, transparent 70%);
+  top: 60%; left: 60%;
+  pointer-events: none;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px;
+  border: 1px solid rgba(0,200,255,.25);
+  border-radius: 99px;
+  font-size: 12px; color: var(--accent);
+  margin-bottom: 32px;
+  animation: fadeUp .6s ease both;
+}
+.hero-badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+h1 {
+  font-family: var(--font-head);
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: 800;
+  line-height: .95;
+  letter-spacing: -3px;
+  margin-bottom: 24px;
+  animation: fadeUp .6s .1s ease both;
+}
+h1 em {
+  font-style: normal;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 40px;
+  animation: fadeUp .6s .2s ease both;
+}
+.hero-cta {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  animation: fadeUp .6s .3s ease both;
+}
+.btn-xl {
+  padding: 14px 32px;
+  font-size: 15px;
+  border-radius: 14px;
+}
+.hero-stats {
+  display: flex; gap: 48px; justify-content: center; flex-wrap: wrap;
+  margin-top: 72px;
+  padding-top: 48px;
+  border-top: 1px solid var(--border);
+  animation: fadeUp .6s .4s ease both;
+}
+.stat { text-align: center; }
+.stat-val {
+  font-family: var(--font-head);
+  font-size: 32px; font-weight: 800;
+  color: var(--text);
+}
+.stat-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ─── PRICING ────────────────────────────────────────────── */
+#pricing {
+  padding: 120px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.section-tag {
+  font-size: 12px; color: var(--accent);
+  letter-spacing: .15em; text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--font-head);
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  margin-bottom: 16px;
+}
+.section-sub { color: var(--muted); max-width: 480px; margin-bottom: 56px; }
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+.plan-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  position: relative;
+  transition: all .25s;
+  cursor: pointer;
+}
+.plan-card:hover {
+  border-color: rgba(0,200,255,.3);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+}
+.plan-card.featured {
+  border-color: rgba(0,200,255,.4);
+  background: linear-gradient(135deg, rgba(0,200,255,.05), rgba(91,74,232,.05));
+}
+.plan-badge {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: var(--bg);
+  font-size: 11px; font-weight: 600;
+  padding: 4px 14px; border-radius: 99px;
+  white-space: nowrap;
+}
+.plan-label {
+  font-family: var(--font-head);
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 20px;
+}
+.plan-price {
+  font-family: var(--font-head);
+  font-size: 42px; font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1;
+}
+.plan-price span { font-size: 18px; font-weight: 400; color: var(--muted); }
+.plan-per { font-size: 12px; color: var(--muted); margin: 6px 0 20px; }
+.plan-save {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  background: rgba(0,229,160,.1);
+  color: var(--success);
+  margin-bottom: 20px;
+}
+.plan-btn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 10px;
+  font-size: 13px; font-weight: 600;
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  border: 1px solid var(--border);
+  transition: all .2s;
+  font-family: var(--font-mono);
+}
+.plan-btn:hover, .plan-card.featured .plan-btn {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* ─── FEATURES ───────────────────────────────────────────── */
+#features {
+  padding: 80px 24px 120px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 56px;
+}
+.feature-card {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+}
+.feature-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  margin-bottom: 20px;
+  background: rgba(0,200,255,.08);
+  border: 1px solid rgba(0,200,255,.15);
+}
+.feature-title {
+  font-family: var(--font-head);
+  font-size: 17px; font-weight: 700;
+  margin-bottom: 8px;
+}
+.feature-desc { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* ─── MODAL ──────────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(7,9,15,.85);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  width: 100%; max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 36px;
+  transform: translateY(16px);
+  transition: transform .3s;
+}
+.overlay.open .modal { transform: translateY(0); }
+.modal-title {
+  font-family: var(--font-head);
+  font-size: 26px; font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 6px;
+}
+.modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+.tabs {
+  display: flex;
+  background: rgba(255,255,255,.04);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 24px;
+  gap: 4px;
+}
+.tab {
+  flex: 1; padding: 8px;
+  border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  transition: all .2s;
+  font-family: var(--font-mono);
+}
+.tab.active {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; display: block; }
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 14px;
+  transition: border-color .2s;
+  outline: none;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--muted); }
+.form-error { font-size: 12px; color: var(--danger); margin-top: 8px; display: none; }
+.modal-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: all .2s;
+}
+.modal-close:hover { background: var(--border); color: var(--text); }
+.modal { position: relative; }
+
+/* ─── DASHBOARD ──────────────────────────────────────────── */
+#dashboard {
+  min-height: 100vh;
+  padding: 100px 24px 60px;
+  max-width: 900px;
+  margin: 0 auto;
+  display: none;
+}
+.dash-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 40px; flex-wrap: wrap; gap: 16px;
+}
+.dash-greeting {
+  font-family: var(--font-head);
+  font-size: 28px; font-weight: 800;
+  letter-spacing: -.5px;
+}
+.dash-greeting span { color: var(--accent); }
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media(max-width: 600px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+}
+.dash-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 12px; }
+.dash-card-value {
+  font-family: var(--font-head);
+  font-size: 36px; font-weight: 800;
+  letter-spacing: -1px;
+}
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 99px;
+  font-size: 13px; font-weight: 500;
+}
+.status-active {
+  background: rgba(0,229,160,.1);
+  color: var(--success);
+  border: 1px solid rgba(0,229,160,.2);
+}
+.status-inactive {
+  background: rgba(255,77,106,.1);
+  color: var(--danger);
+  border: 1px solid rgba(255,77,106,.2);
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.sub-link-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 16px;
+}
+.sub-link-title {
+  font-family: var(--font-head);
+  font-size: 18px; font-weight: 700;
+  margin-bottom: 8px;
+}
+.sub-link-hint { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+.sub-link-open {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 24px;
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 12px;
+  font-size: 14px; font-weight: 600;
+  font-family: var(--font-mono);
+  transition: all .2s;
+  margin-bottom: 20px;
+}
+.sub-link-open:hover {
+  background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,200,255,.25);
+}
+.sub-link-fallback { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.sub-link-code {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.sub-link-url {
+  flex: 1; font-size: 12px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.copy-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 11px; color: var(--muted);
+  font-family: var(--font-mono);
+  transition: all .2s;
+}
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dash-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.trial-card {
+  background: linear-gradient(135deg, rgba(0,200,255,.06), rgba(91,74,232,.06));
+  border: 1px solid rgba(0,200,255,.2);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.trial-title {
+  font-family: var(--font-head);
+  font-size: 24px; font-weight: 800;
+  margin-bottom: 8px;
+}
+.trial-desc { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+/* ─── TOAST ──────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 32px; right: 32px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 13px;
+  transform: translateY(16px);
+  opacity: 0;
+  transition: all .3s;
+  z-index: 500;
+  max-width: 320px;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { border-color: rgba(0,229,160,.4); color: var(--success); }
+.toast.error { border-color: rgba(255,77,106,.4); color: var(--danger); }
+
+/* ─── FOOTER ─────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.footer-copy { font-size: 12px; color: var(--muted); }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { font-size: 12px; color: var(--muted); transition: color .2s; }
+.footer-links a:hover { color: var(--text); }
+
+/* ─── LOADING ─────────────────────────────────────────────── */
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(7,9,15,.3);
+  border-top-color: var(--bg);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+.btn.loading .spinner { display: block; }
+.btn.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────── */
+@media(max-width: 768px) {
+  nav { padding: 16px 20px; }
+  .nav-actions .btn-ghost { display: none; }
+  footer { padding: 24px 20px; flex-direction: column; text-align: center; }
+  .hero-stats { gap: 32px; }
+  .dash-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    FlashLink
+  </div>
+  <div class="nav-actions" id="navActions">
+    <a href="#pricing" class="btn btn-ghost">Тарифы</a>
+    <button class="btn btn-ghost" onclick="openModal('login')">Войти</button>
+    <button class="btn btn-primary" onclick="openModal('register')">Начать →</button>
+  </div>
+  <div class="nav-actions" id="navActionsAuth" style="display:none">
+    <button class="btn btn-ghost" onclick="showDash()">Кабинет</button>
+    <button class="btn btn-outline" onclick="logout()">Выйти</button>
+  </div>
+</nav>
+
+<!-- LANDING -->
+<div id="landing">
+  <!-- HERO -->
+  <section id="home">
+    <div class="hero-glow"></div>
+    <div class="hero-glow-2"></div>
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      14 дней бесплатно для новых пользователей
+    </div>
+    <h1>VPN без<br><em>компромиссов</em></h1>
+    <p class="hero-sub">
+      Быстрое, надёжное и безопасное соединение.<br>
+      Работает на всех устройствах — iOS, Android, Windows, macOS.
+    </p>
+    <div class="hero-cta">
+      <button class="btn btn-primary btn-xl" onclick="openModal('register')">
+        Попробовать бесплатно →
+      </button>
+      <a href="#pricing" class="btn btn-outline btn-xl">Смотреть тарифы</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-val">14</div>
+        <div class="stat-lbl">дней бесплатно</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">5</div>
+        <div class="stat-lbl">устройств одновременно</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">∞</div>
+        <div class="stat-lbl">трафик без лимита</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <p class="section-tag">Почему FlashLink</p>
+    <h2 class="section-title">Всё что нужно<br>для защиты</h2>
+    <p class="section-sub">Без лишнего — только то, что важно для стабильного и безопасного интернета.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Высокая скорость</div>
+        <div class="feature-desc">Современные протоколы VLESS и Trojan обеспечивают минимальные задержки и максимальную пропускную способность.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-title">Полная приватность</div>
+        <div class="feature-desc">Сквозное шифрование. Никаких логов активности. Твой трафик — только твой.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <div class="feature-title">Все устройства</div>
+        <div class="feature-desc">iOS, Android, Windows, macOS, Linux. До 5 устройств одновременно на одной подписке.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔗</div>
+        <div class="feature-title">Умная подписка</div>
+        <div class="feature-desc">Одна ссылка — все конфигурации. Подключить новое устройство можно за секунды.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <p class="section-tag">Тарифы</p>
+    <h2 class="section-title">Честные цены</h2>
+    <p class="section-sub">Чем дольше срок — тем выгоднее. Начни бесплатно, продолжи по тарифу.</p>
+    <div class="plans-grid" id="plansGrid">
+      <!-- заполняется JS -->
+    </div>
+  </section>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="dash-header">
+    <div>
+      <div class="dash-greeting">Привет, <span id="dashEmail">—</span></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">Личный кабинет FlashLink VPN</div>
+    </div>
+  </div>
+
+  <!-- нет подписки -->
+  <div id="noSubBlock" style="display:none">
+    <div class="trial-card">
+      <div class="trial-title">🎁 Попробуй бесплатно</div>
+      <div class="trial-desc">14 дней полноценного VPN — без карты и без обязательств.</div>
+      <button class="btn btn-primary btn-xl" onclick="activateTrial()">
+        <span class="btn-text">Активировать пробный период</span>
+        <div class="spinner"></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- есть подписка -->
+  <div id="subBlock" style="display:none">
+    <div class="dash-grid" style="margin-bottom:16px">
+      <div class="dash-card">
+        <div class="dash-card-label">Статус</div>
+        <div id="dashStatus"></div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Осталось дней</div>
+        <div class="dash-card-value" id="dashDays">—</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Использован трафик</div>
+        <div class="dash-card-value" id="dashTraffic">—</div>
+      </div>
+    </div>
+
+    <div class="sub-link-card">
+      <div class="sub-link-title">📲 Подключить устройство</div>
+      <div class="sub-link-hint">Открой страницу подписки — там пошаговая инструкция и кнопки для быстрого добавления в приложение.</div>
+      <a id="dashSubLink" href="#" target="_blank" class="sub-link-open">
+        🔗 Открыть страницу подписки
+      </a>
+      <div class="sub-link-fallback">Не открывается? Скопируй ссылку и добавь вручную в Hiddify, V2RayNG или другое приложение:</div>
+      <div class="sub-link-code">
+        <div class="sub-link-url" id="dashSubUrl">—</div>
+        <button class="copy-btn" onclick="copyLink()">Копировать</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-actions" id="dashActions"></div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="overlay" id="authOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modalTitle">Добро пожаловать</div>
+    <div class="modal-sub" id="modalSub">Войди или создай аккаунт чтобы продолжить</div>
+    <div class="tabs">
+      <button class="tab active" id="tabLogin" onclick="switchTab('login')">Вход</button>
+      <button class="tab" id="tabRegister" onclick="switchTab('register')">Регистрация</button>
+    </div>
+    <form id="authForm" onsubmit="submitAuth(event)">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" id="authEmail" placeholder="you@example.com" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Пароль</label>
+        <input class="form-input" type="password" id="authPassword" placeholder="••••••••" required>
+      </div>
+      <div class="form-error" id="authError"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;padding:13px;font-size:14px" id="authSubmit">
+        <span class="btn-text" id="authBtnText">Войти</span>
+        <div class="spinner"></div>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="logo" style="font-size:16px">
+    <div class="logo-dot"></div> FlashLink
+  </div>
+  <div class="footer-copy">© 2026 FlashLink VPN. Все права защищены.</div>
+  <div class="footer-links">
+    <a href="#">Поддержка</a>
+    <a href="#">Политика конфиденциальности</a>
+  </div>
+</footer>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+// Замени на URL твоего api_server.py
+const API = window.location.origin + '/api';
+
+// ─── PLANS (загружаются с сервера) ───────────────────────
+let PLANS = [];
+
+// ─── STATE ───────────────────────────────────────────────
+let token = localStorage.getItem('fl_token');
+let currentTab = 'login';
+
+// ─── INIT ─────────────────────────────────────────────────
+async function init() {
+  await loadPlans();
+  if (token) {
+    const ok = await tryRestoreSession();
+    if (!ok) { token = null; localStorage.removeItem('fl_token'); }
+  }
+  renderNav();
+}
+
+async function loadPlans() {
+  try {
+    const data = await api('/plans');
+    PLANS = data.plans || [];
+  } catch {
+    // fallback на случай недоступности API
+    PLANS = [
+      { id: '1m',  label: '1 месяц',    days: 30,  price: 199  },
+      { id: '3m',  label: '3 месяца',   days: 90,  price: 499  },
+      { id: '6m',  label: '6 месяцев',  days: 180, price: 899  },
+      { id: '12m', label: '12 месяцев', days: 365, price: 1499 },
+    ];
+  }
+  renderPlans();
+}
+
+// ─── API ──────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API + path, { headers, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Ошибка сервера');
+  return data;
+}
+
+// ─── SESSION ──────────────────────────────────────────────
+async function tryRestoreSession() {
+  try {
+    await loadDashboard();
+    return true;
+  } catch { return false; }
+}
+
+// ─── RENDER ───────────────────────────────────────────────
+function renderNav() {
+  document.getElementById('navActions').style.display     = token ? 'none' : 'flex';
+  document.getElementById('navActionsAuth').style.display = token ? 'flex' : 'none';
+}
+
+function renderPlans() {
+  const grid = document.getElementById('plansGrid');
+  const perMonth = p => (p.price / (p.days / 30)).toFixed(0);
+  const savings = {
+    '3m':  'Экономия 14%',
+    '6m':  'Экономия 25%',
+    '12m': 'Лучшая цена 🔥',
+  };
+  grid.innerHTML = PLANS.map((p, i) => `
+    <div class="plan-card ${p.id === '6m' ? 'featured' : ''}" onclick="buyPlan('${p.id}')">
+      ${p.id === '6m' ? '<div class="plan-badge">Популярный</div>' : ''}
+      ${p.id === '12m' ? '<div class="plan-badge">Лучшая цена</div>' : ''}
+      <div class="plan-label">${p.label}</div>
+      <div class="plan-price">${p.price}<span> ₽</span></div>
+      <div class="plan-per">~${perMonth(p)} ₽/мес</div>
+      ${savings[p.id] ? `<div class="plan-save">${savings[p.id]}</div>` : '<div style="height:24px"></div>'}
+      <button class="plan-btn">Выбрать →</button>
+    </div>
+  `).join('');
+}
+
+// ─── AUTH ─────────────────────────────────────────────────
+function openModal(tab = 'login') {
+  switchTab(tab);
+  document.getElementById('authOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('authOverlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === e.currentTarget) closeModal();
+}
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('authBtnText').textContent = tab === 'login' ? 'Войти' : 'Создать аккаунт';
+  document.getElementById('authError').style.display = 'none';
+}
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const btn = document.getElementById('authSubmit');
+  const errEl = document.getElementById('authError');
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  errEl.style.display = 'none';
+  btn.classList.add('loading');
+  try {
+    const endpoint = currentTab === 'login' ? '/auth/login' : '/auth/register';
+    const data = await api(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    token = data.access_token;
+    localStorage.setItem('fl_token', token);
+    closeModal();
+    renderNav();
+    await loadDashboard();
+    toast('Добро пожаловать! 👋', 'success');
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function logout() {
+  token = null;
+  localStorage.removeItem('fl_token');
+  renderNav();
+  showLanding();
+  toast('Вы вышли из аккаунта');
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────
+async function loadDashboard() {
+  const data = await api('/cabinet');
+  showDash();
+
+  const emailEl = document.getElementById('dashEmail');
+  emailEl.textContent = data.email || '—';
+
+  const hasSub = data.has_subscription;
+  document.getElementById('noSubBlock').style.display = hasSub ? 'none' : 'block';
+  document.getElementById('subBlock').style.display   = hasSub ? 'block' : 'none';
+
+  if (hasSub) {
+    const active = data.status === 'ACTIVE' && data.days_left > 0;
+    document.getElementById('dashStatus').innerHTML = active
+      ? '<div class="status-badge status-active"><div class="status-dot"></div>Активна</div>'
+      : '<div class="status-badge status-inactive"><div class="status-dot"></div>Истекла</div>';
+    document.getElementById('dashDays').textContent = data.days_left ?? '—';
+    document.getElementById('dashTraffic').textContent = data.traffic_used || '0 МБ';
+    document.getElementById('dashSubLink').href = data.subscription_url || '#';
+    document.getElementById('dashSubUrl').textContent = data.subscription_url || '—';
+  }
+
+  // Кнопки
+  const actions = document.getElementById('dashActions');
+  actions.innerHTML = '';
+  if (hasSub) {
+    actions.innerHTML = `<button class="btn btn-primary btn-xl" onclick="showPayModal()">🔄 Продлить подписку</button>`;
+  }
+}
+
+async function activateTrial() {
+  const btn = document.querySelector('#noSubBlock .btn');
+  btn.classList.add('loading');
+  try {
+    await api('/trial', { method: 'POST' });
+    toast('Пробный период активирован! 🎉', 'success');
+    await loadDashboard();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+async function buyPlan(planId) {
+  if (!token) { openModal('register'); return; }
+  try {
+    const data = await api('/payment/create', {
+      method: 'POST',
+      body: JSON.stringify({ plan_id: planId }),
+    });
+    if (data.confirmation_url) {
+      window.location.href = data.confirmation_url;
+    }
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function showPayModal() {
+  document.getElementById('landing').style.display = 'block';
+  document.getElementById('dashboard').style.display = 'none';
+  setTimeout(() => {
+    document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' });
+  }, 50);
+}
+
+function copyLink() {
+  const url = document.getElementById('dashSubUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => toast('Ссылка скопирована ✓', 'success'));
+}
+
+// ─── VIEWS ────────────────────────────────────────────────
+function showDash() {
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function showLanding() {
+  document.getElementById('landing').style.display = 'block';
+  document.getElementById('dashboard').style.display = 'none';
+}
+
+// ─── TOAST ────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─── START ────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
